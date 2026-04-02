@@ -1,0 +1,111 @@
+name: Vishvakarma — SDD Agent
+
+on:
+  # Trigger manually with a ticket ID
+  workflow_dispatch:
+    inputs:
+      ticket_id:
+        description: "Jira Ticket ID (e.g. GET-74501)"
+        required: true
+        type: string
+      step:
+        description: "Run a single step only (leave blank for full pipeline)"
+        required: false
+        type: choice
+        options:
+          - ""
+          - specify
+          - clarify
+          - plan
+          - checklist
+          - tasks
+          - analyze
+          - implement
+
+  # Auto-trigger on issue_comment — when someone comments "/vishvakarma <TICKET-ID>"
+  issue_comment:
+    types: [created]
+
+jobs:
+  vishvakarma:
+    name: "Vishvakarma — ${{ github.event.inputs.ticket_id || 'auto' }}"
+    runs-on: ubuntu-latest
+    # Only run on manual dispatch, or on comment containing /vishvakarma
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/vishvakarma'))
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Build backend
+        working-directory: backend
+        run: npx tsc --skipLibCheck
+
+      - name: Extract ticket ID from comment
+        if: github.event_name == 'issue_comment'
+        id: extract_ticket
+        run: |
+          COMMENT="${{ github.event.comment.body }}"
+          TICKET=$(echo "$COMMENT" | grep -oP '/vishvakarma\s+\K[A-Z]+-\d+' || true)
+          STEP=$(echo "$COMMENT" | grep -oP '/vishvakarma\s+[A-Z]+-\d+\s+\K\S+' || true)
+          echo "ticket_id=$TICKET" >> $GITHUB_OUTPUT
+          echo "step=$STEP" >> $GITHUB_OUTPUT
+
+      - name: Run Vishvakarma — Full Pipeline
+        if: |
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.step == '') ||
+          (github.event_name == 'issue_comment' && steps.extract_ticket.outputs.step == '')
+        working-directory: backend
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_AUTH_TOKEN: ${{ secrets.JIRA_AUTH_TOKEN }}
+          BITBUCKET_BASE_URL: ${{ secrets.BITBUCKET_BASE_URL }}
+          BITBUCKET_AUTH_TOKEN: ${{ secrets.BITBUCKET_AUTH_TOKEN }}
+          BITBUCKET_PROJECT_KEY: ${{ secrets.BITBUCKET_PROJECT_KEY }}
+          BITBUCKET_DEFAULT_REPO: ${{ secrets.BITBUCKET_DEFAULT_REPO }}
+          LOCAL_REPO_PATH: ${{ github.workspace }}
+          CLAUDE_MODEL: gpt-4o
+        run: |
+          TICKET="${{ github.event.inputs.ticket_id || steps.extract_ticket.outputs.ticket_id }}"
+          node ../bin/vishvakarma.js evaluate "$TICKET"
+
+      - name: Run Vishvakarma — Single Step
+        if: |
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.step != '') ||
+          (github.event_name == 'issue_comment' && steps.extract_ticket.outputs.step != '')
+        working-directory: backend
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_AUTH_TOKEN: ${{ secrets.JIRA_AUTH_TOKEN }}
+          BITBUCKET_BASE_URL: ${{ secrets.BITBUCKET_BASE_URL }}
+          BITBUCKET_AUTH_TOKEN: ${{ secrets.BITBUCKET_AUTH_TOKEN }}
+          BITBUCKET_PROJECT_KEY: ${{ secrets.BITBUCKET_PROJECT_KEY }}
+          BITBUCKET_DEFAULT_REPO: ${{ secrets.BITBUCKET_DEFAULT_REPO }}
+          LOCAL_REPO_PATH: ${{ github.workspace }}
+          CLAUDE_MODEL: gpt-4o
+        run: |
+          TICKET="${{ github.event.inputs.ticket_id || steps.extract_ticket.outputs.ticket_id }}"
+          STEP="${{ github.event.inputs.step || steps.extract_ticket.outputs.step }}"
+          node ../bin/vishvakarma.js step "$TICKET" "$STEP"
+
+      - name: Upload generated specs as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vishvakarma-specs-${{ github.event.inputs.ticket_id || 'run' }}
+          path: specs/
+          retention-days: 30

@@ -1,0 +1,19 @@
+{
+  "name": "vishvakarma-sprint-dashboard",
+  "version": "1.0.0",
+  "description": "Vishvakarma — Autonomous SDD Agent + Sprint Lifecycle Dashboard",
+  "private": true,
+  "bin": {
+    "vishvakarma": "./bin/vishvakarma.js"
+  },
+  "scripts": {
+    "dev:backend":  "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all":  "cd backend && npm ci && cd ../frontend && npm ci",
+    "build:backend": "cd backend && npx tsc --skipLibCheck",
+    "vishvakarma": "node bin/vishvakarma.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,50 @@
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ── Build outputs ─────────────────────────────────────────────────────────────
+dist/
+build/
+*.js.map
+
+# ── Environment — NEVER commit secrets ────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# ── Database ──────────────────────────────────────────────────────────────────
+backend/dashboard.db
+backend/dashboard.db.lock
+backend/dashboard.db-journal
+*.db
+*.db-lock
+
+# ── Uploads ───────────────────────────────────────────────────────────────────
+backend/uploads/
+!backend/uploads/.gitkeep
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# ── OS files ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editor ────────────────────────────────────────────────────────────────────
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+
+# ── TypeScript cache ──────────────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ── Vite cache ────────────────────────────────────────────────────────────────
+frontend/.vite/
